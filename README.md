@@ -1,1 +1,1 @@
-# big-data-architectures
+# Big Data Architectures project 
