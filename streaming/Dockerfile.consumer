@@ -1,9 +1,0 @@
-FROM python:3.9-slim-buster
-
-RUN apt-get update && apt-get install -y openjdk-11-jre-headless
-
-RUN pip install kafka-python pyspark
-
-COPY consumer.py /
-
-CMD sleep infinity
