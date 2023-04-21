@@ -130,3 +130,4 @@ dmypy.json
 
 *.csv
 *.csv:Zone.Identifier
+*.jar:Zone.Identifier
