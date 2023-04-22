@@ -1,5 +1,6 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import avg, split, year, sum, desc, max, countDistinct, col
+from pyspark.sql.functions import avg, split, year, sum, desc, max, countDistinct, col, rank, min, row_number
+from pyspark.sql.window import Window
 
 
 # 1) U kojim kolicinama su zastupljeni zagadjivaci u kojim gradovima?
@@ -75,11 +76,11 @@ def get_the_most_pollutant_year(df):
     df_with_year = df.withColumn("year", split(df["date_local"], "-").getItem(0)) 
     df_with_year.show()
 
-    result = df_with_year.groupBy("year").agg(avg("first_max_value").alias("average_pollution"))
-    result = result.sort(result["average_pollution"].desc()).limit(20)
-    result.show()
+    result_df = df_with_year.groupBy("year").agg(avg("first_max_value").alias("average_pollution"))
+    result_df = result_df.sort(result_df["average_pollution"].desc()).limit(20)
+    result_df.show()
 
-    result.write.format("jdbc").option("url", "jdbc:postgresql://db:5432/DATABASE").\
+    result_df.write.format("jdbc").option("url", "jdbc:postgresql://db:5432/DATABASE").\
         option("driver", "org.postgresql.Driver").\
         option("dbtable", "years_with_the_most_pollutions").\
         option("user", "user").\
@@ -90,10 +91,10 @@ def get_the_most_pollutant_year(df):
 
 # 7) Drzava sa najvecim brojem zagadjenih gradova
 def get_country_with_most_cities_pollutant(df):
-    result = df.groupBy("county_name").count()
-    result = result.orderBy(result["county_name"].asc())
+    result_df = df.groupBy("county_name").count()
+    result_df = result_df.orderBy(result_df["county_name"].asc())
 
-    result.write.format("jdbc").option("url", "jdbc:postgresql://db:5432/DATABASE").\
+    result_df.write.format("jdbc").option("url", "jdbc:postgresql://db:5432/DATABASE").\
     option("driver", "org.postgresql.Driver").\
     option("dbtable", "country_with_most_cities_pollutant").\
     option("user", "user").\
@@ -103,12 +104,47 @@ def get_country_with_most_cities_pollutant(df):
 
 # 8) Prosecna zagadjenost vazduha po drzavama
 def get_pollution_by_country(df):
-    result = df.groupBy("county_name").agg(avg("first_max_value").alias("average_pollution"))
-    result = result.orderBy(result["county_name"].asc())
+    result_df = df.groupBy("county_name").agg(avg("first_max_value").alias("average_pollution"))
+    result_df = result_df.orderBy(result_df["county_name"].asc())
 
-    result.write.format("jdbc").option("url", "jdbc:postgresql://db:5432/DATABASE").\
+    result_df.write.format("jdbc").option("url", "jdbc:postgresql://db:5432/DATABASE").\
     option("driver", "org.postgresql.Driver").\
     option("dbtable", "pollution_by_country").\
+    option("user", "user").\
+    option("password", "password").\
+    mode("overwrite").save()
+
+
+# 9) Primer Window funkcije - Prosecna koncentracija zagadjivaca po gradovima
+#    i rank u odnosu na prosecnu koncentraciju
+# def calculate_avg_pollutions_and_rank_countries(df):
+#     # casted_df = df.withColumn("first_max_value", col("first_max_value").cast("float"))
+#     window = Window.partitionBy("county_name", "parameter_name").orderBy(avg("first_max_value").desc()).rowsBetween(Window.unboundedPreceding, Window.currentRow)
+
+#     result_df = df.withColumn("average_pollution", avg("first_max_value").over(window)).\
+#                 withColumn("county_rank", rank().over(window))
+
+#     result_df.write.format("jdbc").option("url", "jdbc:postgresql://db:5432/DATABASE").\
+#     option("driver", "org.postgresql.Driver").\
+#     option("dbtable", "pollution_by_country").\
+#     option("user", "user").\
+#     option("password", "password").\
+#     mode("overwrite").save()
+
+
+def try_windows(df):
+    window = Window.partitionBy("county_name", "parameter_name")
+
+    result_df = df.withColumn("max_concentration", max("first_max_value").over(window)) \
+    .withColumn("min_concentration", min("first_max_value").over(window)) \
+    .withColumn("concentration_diff", max("first_max_value").over(window) - min("first_max_value").over(window)) \
+    .withColumn("county_rank", row_number().over(window.orderBy("concentration_diff"))) \
+    .filter("county_rank <= 10") \
+    .select("county_name", "parameter_name", "max_concentration", "min_concentration", "concentration_diff")
+
+    result_df.write.format("jdbc").option("url", "jdbc:postgresql://db:5432/DATABASE").\
+    option("driver", "org.postgresql.Driver").\
+    option("dbtable", "top_10_countries_with_biggest_pollution_difference").\
     option("user", "user").\
     option("password", "password").\
     mode("overwrite").save()
@@ -141,3 +177,5 @@ if __name__ == "__main__":
     five_cities_with_the_most_pollutant_air(air_pollutants_df)
     find_long_lat_of_the_most_pollutant_place(air_pollutants_df)
     find_max_measurements_in_a_day(air_pollutants_df)
+    # calculate_avg_pollutions_and_rank_countries(air_pollutants_df)
+    try_windows(air_pollutants_df)
