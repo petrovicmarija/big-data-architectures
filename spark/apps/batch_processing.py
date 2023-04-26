@@ -132,7 +132,7 @@ def get_pollution_by_country(df):
 #     mode("overwrite").save()
 
 
-def try_windows(df):
+def get_biggest_pollution_difference(df):
     window = Window.partitionBy("county_name", "parameter_name")
 
     result_df = df.withColumn("max_concentration", max("first_max_value").over(window)) \
@@ -141,6 +141,8 @@ def try_windows(df):
     .withColumn("county_rank", row_number().over(window.orderBy("concentration_diff"))) \
     .filter("county_rank <= 10") \
     .select("county_name", "parameter_name", "max_concentration", "min_concentration", "concentration_diff")
+
+    result_df = result_df.distinct()
 
     result_df.write.format("jdbc").option("url", "jdbc:postgresql://db:5432/DATABASE").\
     option("driver", "org.postgresql.Driver").\
@@ -178,4 +180,4 @@ if __name__ == "__main__":
     find_long_lat_of_the_most_pollutant_place(air_pollutants_df)
     find_max_measurements_in_a_day(air_pollutants_df)
     # calculate_avg_pollutions_and_rank_countries(air_pollutants_df)
-    try_windows(air_pollutants_df)
+    get_biggest_pollution_difference(air_pollutants_df)
