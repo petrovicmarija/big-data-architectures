@@ -30,7 +30,7 @@ if __name__ == "__main__":
     df = df.selectExpr("CAST(value AS STRING)")
 
     schema_string = "pollutant_location_id STRING, pollutant_location STRING, pollutant_parameter STRING, "\
-            + "pollutant_value DOUBLE, pollutant_date DATE, pollutant_unit STRING, pollutant_coordinates_latitude DOUBLE, "\
+            + "pollutant_value DOUBLE, pollutant_date TIMESTAMP, pollutant_unit STRING, pollutant_coordinates_latitude DOUBLE, "\
             + "pollutant_coordinate_longitude DOUBLE, pollutant_country STRING, pollutant_city STRING, "\
             + "pollutant_is_mobile BOOLEAN, pollutant_is_analysis BOOLEAN, pollutant_entity STRING, pollutant_sensor_type STRING"
     
