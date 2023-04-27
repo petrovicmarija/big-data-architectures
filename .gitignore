@@ -131,3 +131,4 @@ dmypy.json
 *.csv
 *.csv:Zone.Identifier
 *.jar:Zone.Identifier
+*.png:Zone.Identifier
